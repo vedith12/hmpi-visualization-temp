@@ -1,0 +1,66 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>HMPI Map Demo</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <style>
+    #map { height: 90vh; width: 100%; }
+    .legend { background: white; padding: 6px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+  <script>
+    const data = {"type": "FeatureCollection", "features": [{"type": "Feature", "geometry": {"type": "Point", "coordinates": [78.486, 17.385]}, "properties": {"id": 1, "site_name": "SiteA", "hpi": 98.27, "Pb": 0.012, "Cd": 0.004, "As": 0.015, "Cr": 0.03, "Hg": 0.0008}}, {"type": "Feature", "geometry": {"type": "Point", "coordinates": [78.495, 17.395]}, "properties": {"id": 2, "site_name": "SiteB", "hpi": 56.67, "Pb": 0.008, "Cd": 0.002, "As": 0.007, "Cr": 0.02, "Hg": 0.0005}}, {"type": "Feature", "geometry": {"type": "Point", "coordinates": [78.505, 17.405]}, "properties": {"id": 3, "site_name": "SiteC", "hpi": 160.99, "Pb": 0.02, "Cd": 0.006, "As": 0.011, "Cr": 0.06, "Hg": 0.0015}}, {"type": "Feature", "geometry": {"type": "Point", "coordinates": [78.475, 17.375]}, "properties": {"id": 4, "site_name": "SiteD", "hpi": 92.79, "Pb": 0.01, "Cd": 0.003, "As": 0.009, "Cr": 0.045, "Hg": 0.0009}}, {"type": "Feature", "geometry": {"type": "Point", "coordinates": [78.515, 17.415]}, "properties": {"id": 5, "site_name": "SiteE", "hpi": 26.13, "Pb": 0.005, "Cd": 0.001, "As": 0.004, "Cr": 0.012, "Hg": 0.0002}}, {"type": "Feature", "geometry": {"type": "Point", "coordinates": [78.47, 17.36]}, "properties": {"id": 6, "site_name": "SiteF", "hpi": 209.86, "Pb": 0.025, "Cd": 0.007, "As": 0.02, "Cr": 0.08, "Hg": 0.002}}, {"type": "Feature", "geometry": {"type": "Point", "coordinates": [78.53, 17.43]}, "properties": {"id": 7, "site_name": "SiteG", "hpi": 66.63, "Pb": 0.009, "Cd": 0.0025, "As": 0.006, "Cr": 0.018, "Hg": 0.0006}}, {"type": "Feature", "geometry": {"type": "Point", "coordinates": [78.48, 17.37]}, "properties": {"id": 8, "site_name": "SiteH", "hpi": 100.74, "Pb": 0.011, "Cd": 0.0035, "As": 0.01, "Cr": 0.04, "Hg": 0.00095}}, {"type": "Feature", "geometry": {"type": "Point", "coordinates": [78.49, 17.39]}, "properties": {"id": 9, "site_name": "SiteI", "hpi": 119.66, "Pb": 0.014, "Cd": 0.0042, "As": 0.013, "Cr": 0.055, "Hg": 0.0011}}, {"type": "Feature", "geometry": {"type": "Point", "coordinates": [78.5, 17.4]}, "properties": {"id": 10, "site_name": "SiteJ", "hpi": 38.15, "Pb": 0.007, "Cd": 0.0015, "As": 0.005, "Cr": 0.015, "Hg": 0.0003}}]};
+    const map = L.map('map').setView([17.3925, 78.4946], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(map);
+
+    // Heat data
+    const heatData = data.features.map(f => [f.geometry.coordinates[1], f.geometry.coordinates[0], Math.max(f.properties.hpi/200, 0.1)]);
+    const heat = L.heatLayer(heatData, {radius: 30, blur: 20, maxZoom: 17}).addTo(map);
+
+    // Marker layer (color by hpi)
+    function getColor(h) {
+      return h > 150 ? '#800026' :
+             h > 100 ? '#BD0026' :
+             h > 75  ? '#E31A1C' :
+             h > 50  ? '#FC4E2A' :
+             h > 25  ? '#FD8D3C' :
+             h > 10  ? '#FEB24C' :
+                       '#FFEDA0';
+    }
+    const markers = L.layerGroup();
+    data.features.forEach(f => {
+      const lat = f.geometry.coordinates[1], lon = f.geometry.coordinates[0];
+      const h = f.properties.hpi;
+      const mk = L.circleMarker([lat,lon], {radius:8, fillColor:getColor(h), color:'#000', weight:1, fillOpacity:0.9});
+      mk.bindPopup('<b>' + f.properties.site_name + '</b><br>HPI: ' + h + '<br>Pb: ' + f.properties.Pb + ' mg/L<br>Cd: ' + f.properties.Cd + ' mg/L');
+      markers.addLayer(mk);
+    });
+    markers.addTo(map);
+
+    // Layer control
+    const baseMaps = {}, overlayMaps = { "Heatmap": heat, "Samples": markers };
+    L.control.layers(baseMaps, overlayMaps).addTo(map);
+
+    // Legend
+    const legend = L.control({position: 'bottomright'});
+    legend.onAdd = function (map) {
+      const div = L.DomUtil.create('div', 'legend');
+      div.innerHTML = '<b>HPI scale</b><br><i style="background:#800026;width:18px;height:10px;display:inline-block"></i> >150<br>' +
+                      '<i style="background:#BD0026;width:18px;height:10px;display:inline-block"></i> 101-150<br>' +
+                      '<i style="background:#E31A1C;width:18px;height:10px;display:inline-block"></i> 76-100<br>' +
+                      '<i style="background:#FC4E2A;width:18px;height:10px;display:inline-block"></i> 51-75<br>' +
+                      '<i style="background:#FD8D3C;width:18px;height:10px;display:inline-block"></i> 26-50<br>' +
+                      '<i style="background:#FEB24C;width:18px;height:10px;display:inline-block"></i> 11-25<br>' +
+                      '<i style="background:#FFEDA0;width:18px;height:10px;display:inline-block"></i> 0-10<br>';
+      return div;
+    };
+    legend.addTo(map);
+  </script>
+</body>
+</html>
