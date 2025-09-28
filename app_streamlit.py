@@ -1,7 +1,8 @@
 import streamlit as st
 import pandas as pd
-import json, os
-from hpi_utils import csv_to_geojson, compute_hpi_row
+import os
+from hpi_utils import compute_hpi_from_csv, generate_map
+import streamlit.components.v1 as components
 
 st.set_page_config(layout="wide", page_title="HMPI Mapper - Demo")
 st.title("HMPI Mapper — CSV upload, HPI computation & map visualization (Demo)")
@@ -15,22 +16,24 @@ Upload a CSV file with columns: id, site_name, lat, lon, Pb, Cd, As, Cr, Hg, dat
 uploaded = st.file_uploader("Upload CSV", type=["csv"])
 if uploaded is None:
     if st.button("Use sample data (provided)"):
-        uploaded = open("sample_data.csv","rb")
+        uploaded = open("sample_data.csv", "rb")
 
 if uploaded:
     df = pd.read_csv(uploaded)
     st.subheader("Raw data preview")
     st.dataframe(df.head())
 
-    # compute HPI
-    df['hpi'] = df.apply(lambda r: compute_hpi_row(r.to_dict()), axis=1)
+    # compute HPI for all rows
+    df = compute_hpi_from_csv(df)
     st.subheader("Computed HPI (per-sample)")
     st.dataframe(df[['id','site_name','hpi','Pb','Cd','As','Cr','Hg']].round(3))
 
-    # create geojson for frontend map (simple inline map using leaflet)
-    st.markdown("### Map preview (opens in new tab as HTML)")
-    html_file = "hmpi_map.html"
-    if os.path.exists(html_file):
-        st.markdown(f"[Open interactive map HTML]({html_file})")
-    else:
-        st.write("Map HTML not available locally in this Streamlit demo. Use the provided hmpi_map.html in the repo.")
+    # generate interactive map and embed in Streamlit
+    st.subheader("Interactive map")
+    map_file = "uploaded_map.html"
+    generate_map(df, map_file)
+
+    # embed map directly
+    with open(map_file, "r", encoding="utf-8") as f:
+        map_html = f.read()
+    components.html(map_html, height=600)
